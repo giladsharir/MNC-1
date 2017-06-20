@@ -49,7 +49,7 @@ class DAVISSeg(PascalVOCDet):
 
     def image_path_at(self, i):
         # image_path = os.path.join(self._data_path, 'VOC2012', 'JPEGImages',  self._image_index[i] + self._image_ext)
-        image_path = os.path.join(self._data_path, 'img', self._image_index[i] + self._image_ext)
+        image_path = os.path.join(self._data_path, self._image_index[i])
         assert os.path.exists(image_path), 'Path does not exist: {}'.format(image_path)
         return image_path
 
@@ -104,7 +104,7 @@ class DAVISSeg(PascalVOCDet):
         image_set_file = os.path.join(self._data_path, 'ImageSets', '480p', self._image_set + '.txt')
         assert os.path.exists(image_set_file), 'Path does not exist: {}'.format(image_set_file)
         with open(image_set_file) as f:
-            image_index = [x.strip() for x in f.readlines()]
+            image_index = [x.strip().split[' '][0] for x in f.readlines()]
         return image_index
 
     # def _load_davis_mask_annotations(self, index, gt_roidbs):
@@ -118,7 +118,8 @@ class DAVISSeg(PascalVOCDet):
 
     def _load_davis_annotations(self, index):
         if index % 1000 == 0: print '%d / %d' % (index, len(self._image_index))
-        image_name = self._image_index[index]
+        image_name = os.path.join(*(self._image_index[index].split('/')[1:]))
+        image_name = image_name.split('.')[0]
 
         inst_file_name = os.path.join(self._data_path, 'Annotations', image_name + '.png')
 
@@ -171,7 +172,9 @@ class DAVISSeg(PascalVOCDet):
         """
         if index % 1000 == 0:
             print '%d / %d' % (index, len(self._image_index))
-        image_name = self._image_index[index]
+        image_name = os.path.join(*(self._image_index[index].split('/')[1:]))
+        image_name = image_name.split('.')[0]
+
         inst_file_name = os.path.join(self._data_path, 'Annotations', image_name + '.png')
 
         # gt_inst_mat = scipy.io.loadmat(inst_file_name)
