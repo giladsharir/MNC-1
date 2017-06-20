@@ -234,6 +234,8 @@ def gpu_mask_voting(masks, boxes, scores, num_classes, max_per_image, im_width, 
         inds = nms(dets, cfg.TEST.MASK_MERGE_NMS_THRESH)
         ind_boxes = boxes[inds]
         ind_scores = scores[inds, i]
+        # ind_boxes = boxes
+        # ind_scores = scores
         num_keep = min(len(ind_scores), max_per_image)
         sup_boxes.append(ind_boxes[0:num_keep, :])
         sup_scores.append(ind_scores[0:num_keep])

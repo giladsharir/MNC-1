@@ -14,9 +14,10 @@ from mnc_config import cfg
 from utils.vis_seg import vis_seg
 from utils.voc_eval import voc_eval_sds
 import scipy
+import cv2
 
 
-class PascalVOCSeg(PascalVOCDet):
+class DAVISSeg(PascalVOCDet):
     """
     A subclass for datasets.imdb.imdb
     This class contains information of ROIDB and MaskDB
@@ -33,8 +34,18 @@ class PascalVOCSeg(PascalVOCDet):
                        'use_diff': False,
                        'matlab_eval': False,
                        'rpn_file': None}
-        self._data_path = os.path.join(self._devkit_path)
+        # self._data_path = os.path.join(self._devkit_path)
+        self._data_path = self._get_default_path() if devkit_path is None else devkit_path
+
+        self._image_index = self._load_image_set_index()
+
         self._roidb_path = os.path.join(self.cache_path, 'voc_2012_' + image_set + '_mcg_maskdb')
+
+    def _get_default_path(self):
+        """
+        Return the default path where PASCAL VOC is expected to be installed.
+        """
+        return os.path.join(cfg.DATA_DIR, 'DAVIS' + self._year)
 
     def image_path_at(self, i):
         # image_path = os.path.join(self._data_path, 'VOC2012', 'JPEGImages',  self._image_index[i] + self._image_ext)
@@ -58,49 +69,132 @@ class PascalVOCSeg(PascalVOCDet):
             print '{} gt maskdb loaded from {}'.format(self.name, cache_file)
         else:
             num_image = len(self.image_index)
-            gt_roidbs = self.gt_roidb()
-            gt_maskdb = [self._load_sbd_mask_annotations(index, gt_roidbs)
+            gt_roidbs = self.gt_davis_roidb()
+            gt_maskdb = [self._load_davis_mask_annotations(index, gt_roidbs)
                          for index in xrange(num_image)]
             with open(cache_file, 'wb') as fid:
                 cPickle.dump(gt_maskdb, fid, cPickle.HIGHEST_PROTOCOL)
             print 'wrote gt roidb to {}'.format(cache_file)
         return gt_maskdb
 
+    def gt_davis_roidb(self):
+        """
+        Return the database of ground-truth regions of interest.
+        This function loads/saves from/to a cache file to speed up future calls.
+        """
+        cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb.pkl')
+        if os.path.exists(cache_file):
+            with open(cache_file, 'rb') as fid:
+                roidb = cPickle.load(fid)
+            print '{} gt roidb loaded from {}'.format(self.name, cache_file)
+            return roidb
+
+        num_image = len(self.image_index)
+        if cfg.MNC_MODE:
+            gt_roidb = [self._load_davis_annotations(index) for index in xrange(num_image)]
+        else:
+            gt_roidb = [self._load_pascal_annotations(index) for index in xrange(num_image)]
+        with open(cache_file, 'wb') as fid:
+            cPickle.dump(gt_roidb, fid, cPickle.HIGHEST_PROTOCOL)
+        print 'wrote gt roidb to {}'.format(cache_file)
+        return gt_roidb
+
     def _load_image_set_index(self):
         # image_set_file = os.path.join(self._data_path, 'ImageSets' , 'Segmentation', self._image_set + '.txt')
-        image_set_file = os.path.join(self._data_path, self._image_set + '.txt')
+        image_set_file = os.path.join(self._data_path, 'ImageSets', '480p', self._image_set + '.txt')
         assert os.path.exists(image_set_file), 'Path does not exist: {}'.format(image_set_file)
         with open(image_set_file) as f:
             image_index = [x.strip() for x in f.readlines()]
         return image_index
 
-    def _load_sbd_mask_annotations(self, index, gt_roidbs):
+    # def _load_davis_mask_annotations(self, index, gt_roidbs):
+    #     "read mask data from DAVIS dataset"
+    #
+    #     return {
+    #         'gt_masks': gt_masks,
+    #         'mask_max': [mask_max_x, mask_max_y],
+    #         'flipped': False
+    #     }
+
+    def _load_davis_annotations(self, index):
+        if index % 1000 == 0: print '%d / %d' % (index, len(self._image_index))
+        image_name = self._image_index[index]
+
+        inst_file_name = os.path.join(self._data_path, 'Annotations', image_name + '.png')
+
+        # gt_inst_mat = scipy.io.loadmat(inst_file_name)
+        # gt_inst_data = gt_inst_mat['GTinst']['Segmentation'][0][0]
+        gt_inst_data = cv2.imread(inst_file_name)
+        unique_inst = np.unique(gt_inst_data)
+        background_ind = np.where(unique_inst == 0)[0]
+        unique_inst = np.delete(unique_inst, background_ind)
+
+
+        # inst_file_name = os.path.join(self._data_path, 'inst', image_name + '.mat')
+        # gt_inst_mat = scipy.io.loadmat(inst_file_name)
+        # gt_inst_data = gt_inst_mat['GTinst']['Segmentation'][0][0]
+        # unique_inst = np.unique(gt_inst_data)
+        # background_ind = np.where(unique_inst == 0)[0]
+        # unique_inst = np.delete(unique_inst, background_ind)
+
+        # cls_file_name = os.path.join(self._data_path, 'cls', image_name + '.mat')
+        # gt_cls_mat = scipy.io.loadmat(cls_file_name)
+        # gt_cls_data = gt_cls_mat['GTcls']['Segmentation'][0][0]
+
+        boxes = np.zeros((len(unique_inst), 4), dtype=np.uint16)
+        gt_classes = np.zeros(len(unique_inst), dtype=np.int32)
+        overlaps = np.zeros((len(unique_inst), self.num_classes), dtype=np.float32)
+        for ind, inst_mask in enumerate(unique_inst):
+            im_mask = (gt_inst_data == inst_mask)
+            # im_cls_mask = np.multiply(gt_cls_data, im_mask)
+            # unique_cls_inst = np.unique(im_cls_mask)
+            # background_ind = np.where(unique_cls_inst == 0)[0]
+            # unique_cls_inst = np.delete(unique_cls_inst, background_ind)
+            # assert len(unique_cls_inst) == 1
+            # gt_classes[ind] = unique_cls_inst[0]
+            gt_classes[ind] = ind
+            [r, c] = np.where(im_mask > 0)
+            boxes[ind, 0] = np.min(c)
+            boxes[ind, 1] = np.min(r)
+            boxes[ind, 2] = np.max(c)
+            boxes[ind, 3] = np.max(r)
+            overlaps[ind, ind] = 1.0
+
+        overlaps = scipy.sparse.csr_matrix(overlaps)
+        return {'boxes': boxes,
+                'gt_classes': gt_classes,
+                'gt_overlaps': overlaps,
+                'flipped': False}
+    def _load_davis_mask_annotations(self, index, gt_roidbs):
         """
         Load gt_masks information from SBD's additional data
         """
         if index % 1000 == 0:
             print '%d / %d' % (index, len(self._image_index))
         image_name = self._image_index[index]
-        inst_file_name = os.path.join(self._data_path, 'inst', image_name + '.mat')
-        gt_inst_mat = scipy.io.loadmat(inst_file_name)
-        gt_inst_data = gt_inst_mat['GTinst']['Segmentation'][0][0]
+        inst_file_name = os.path.join(self._data_path, 'Annotations', image_name + '.png')
+
+        # gt_inst_mat = scipy.io.loadmat(inst_file_name)
+        # gt_inst_data = gt_inst_mat['GTinst']['Segmentation'][0][0]
+        gt_inst_data = cv2.imread(inst_file_name)
         unique_inst = np.unique(gt_inst_data)
         background_ind = np.where(unique_inst == 0)[0]
         unique_inst = np.delete(unique_inst, background_ind)
         gt_roidb = gt_roidbs[index]
-        cls_file_name = os.path.join(self._data_path, 'cls', image_name + '.mat')
-        gt_cls_mat = scipy.io.loadmat(cls_file_name)
-        gt_cls_data = gt_cls_mat['GTcls']['Segmentation'][0][0]
+        # cls_file_name = os.path.join(self._data_path, 'cls', image_name + '.mat')
+        # gt_cls_mat = scipy.io.loadmat(cls_file_name)
+        # gt_cls_data = gt_cls_mat['GTcls']['Segmentation'][0][0]
         gt_masks = []
         for ind, inst_mask in enumerate(unique_inst):
             box = gt_roidb['boxes'][ind]
             im_mask = (gt_inst_data == inst_mask)
-            im_cls_mask = np.multiply(gt_cls_data, im_mask)
-            unique_cls_inst = np.unique(im_cls_mask)
-            background_ind = np.where(unique_cls_inst == 0)[0]
-            unique_cls_inst = np.delete(unique_cls_inst, background_ind)
-            assert len(unique_cls_inst) == 1
-            assert unique_cls_inst[0] == gt_roidb['gt_classes'][ind]
+            #Gilad: not sure what this is used for:
+            # im_cls_mask = np.multiply(gt_cls_data, im_mask)
+            # unique_cls_inst = np.unique(im_cls_mask)
+            # background_ind = np.where(unique_cls_inst == 0)[0]
+            # unique_cls_inst = np.delete(unique_cls_inst, background_ind)
+            # assert len(unique_cls_inst) == 1
+            # assert unique_cls_inst[0] == gt_roidb['gt_classes'][ind]
             mask = im_mask[box[1]: box[3]+1, box[0]:box[2]+1]
             gt_masks.append(mask)
 

@@ -23,6 +23,7 @@ from transform.mask_transform import gpu_mask_voting
 import matplotlib.pyplot as plt
 from utils.vis_seg import _convert_pred_to_image, _get_voc_color_map
 from PIL import Image
+from glob import glob
 
 # VOC 20 classes
 CLASSES = ('aeroplane', 'bicycle', 'bird', 'boat',
@@ -31,6 +32,7 @@ CLASSES = ('aeroplane', 'bicycle', 'bird', 'boat',
            'motorbike', 'person', 'pottedplant',
            'sheep', 'sofa', 'train', 'tvmonitor')
 
+disp_result = False
 
 def parse_args():
     """Parse input arguments."""
@@ -133,13 +135,24 @@ if __name__ == '__main__':
     for i in xrange(2):
         _, _, _ = im_detect(im, net)
 
-    im_names = ['2008_000533.jpg', '2008_000910.jpg', '2008_001602.jpg',
-                '2008_001717.jpg', '2008_008093.jpg']
-    demo_dir = './data/demo'
+#    im_names = ['2008_000533.jpg', '2008_000910.jpg', '2008_001602.jpg',
+#                '2008_001717.jpg', '2008_008093.jpg']
+    davis_path = '/home/ubuntu/Data/DAVIS/JPEGImages/480p/'
+#    im_names = ['camel_00020.jpg','dog_00010.jpg','flamingo_00020.jpg',\
+#        'goat_00020.jpg','hike_00010.jpg','parkour_00020.jpg','scooter-black_00020.jpg',\
+#        'train_00020.jpg']
+
+    im_names = []
+    for vids in glob(davis_path+"/*"):
+        print vids
+        for frames in glob(vids+"/*jpg"):
+            im_names.append(os.path.join(frames.split('/')[-2],frames.split('/')[-1]))
+
+    demo_dir = '../data/demo_davis3'
     for im_name in im_names:
         print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
         print 'Demo for data/demo/{}'.format(im_name)
-        gt_image = os.path.join(demo_dir, im_name)
+        gt_image = os.path.join(davis_path, im_name)
         im = cv2.imread(gt_image)
         start = time.time()
         boxes, masks, seg_scores = im_detect(im, net)
@@ -154,7 +167,13 @@ if __name__ == '__main__':
         
         inst_img, cls_img = _convert_pred_to_image(img_width, img_height, pred_dict)
         color_map = _get_voc_color_map()
-        target_cls_file = os.path.join(demo_dir, 'cls_' + im_name)
+        vid_name = im_name.split('/')[-2]
+        f_name = im_name.split('/')[-1]
+        sv_path = os.path.join(demo_dir,vid_name)
+        if not os.path.isdir(sv_path):
+            os.system("mkdir -p "+sv_path)
+
+        target_cls_file = os.path.join(demo_dir, vid_name, 'cls_' + f_name)
         cls_out_img = np.zeros((img_height, img_width, 3))
         for i in xrange(img_height):
             for j in xrange(img_width):
@@ -166,26 +185,27 @@ if __name__ == '__main__':
         background = background.convert('RGBA')
         mask = mask.convert('RGBA')
         superimpose_image = Image.blend(background, mask, 0.8)
-        superimpose_name = os.path.join(demo_dir, 'final_' + im_name)
+        superimpose_name = os.path.join(demo_dir, vid_name, 'final_' + f_name)
         superimpose_image.save(superimpose_name, 'JPEG')
         im = cv2.imread(superimpose_name)
 
         im = im[:, :, (2, 1, 0)]
-        fig, ax = plt.subplots(figsize=(12, 12))
-        ax.imshow(im, aspect='equal')
-        classes = pred_dict['cls_name']
-        for i in xrange(len(classes)):
-            score = pred_dict['boxes'][i][-1]
-            bbox = pred_dict['boxes'][i][:4]
-            cls_ind = classes[i] - 1
-            ax.text(bbox[0], bbox[1] - 8,
-                '{:s} {:.4f}'.format(CLASSES[cls_ind], score),
-                bbox=dict(facecolor='blue', alpha=0.5),
-                fontsize=14, color='white')
-        plt.axis('off')
-        plt.tight_layout()
-        plt.draw()
+        if disp_result:
+            fig, ax = plt.subplots(figsize=(12, 12))
+            ax.imshow(im, aspect='equal')
+            classes = pred_dict['cls_name']
+            for i in xrange(len(classes)):
+                score = pred_dict['boxes'][i][-1]
+                bbox = pred_dict['boxes'][i][:4]
+                cls_ind = classes[i] - 1
+                ax.text(bbox[0], bbox[1] - 8,
+                    '{:s} {:.4f}'.format(CLASSES[cls_ind], score),
+                    bbox=dict(facecolor='blue', alpha=0.5),
+                    fontsize=14, color='white')
+            plt.axis('off')
+            plt.tight_layout()
+            plt.draw()
 
-        fig.savefig(os.path.join(demo_dir, im_name[:-4]+'.png'))
-        os.remove(superimpose_name)
-        os.remove(target_cls_file)
+            fig.savefig(os.path.join(demo_dir, im_name[:-4]+'.png'))
+            os.remove(superimpose_name)
+            os.remove(target_cls_file)

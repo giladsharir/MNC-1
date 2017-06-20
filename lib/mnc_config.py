@@ -123,7 +123,8 @@ __C.TEST.NMS = 0.3
 # Set this true in the yml file to specify proposed RPN
 __C.TEST.HAS_RPN = True
 # NMS threshold used on RPN proposals
-__C.TEST.RPN_NMS_THRESH = 0.7
+__C.TEST.RPN_NMS_THRESH = 0.5
+# __C.TEST.RPN_NMS_THRESH = 0.7
 # Number of top scoring boxes to keep before apply NMS to RPN proposals
 __C.TEST.RPN_PRE_NMS_TOP_N = 6000
 # Number of top scoring boxes to keep after applying NMS to RPN proposals
