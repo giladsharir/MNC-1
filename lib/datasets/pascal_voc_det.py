@@ -27,7 +27,12 @@ class PascalVOCDet(PascalVOC):
         self._year = year
         self._image_set = image_set
         self._devkit_path = self._get_default_path() if devkit_path is None else devkit_path
-        self._data_path = os.path.join(self._devkit_path, 'VOC' + self._year) if 'SDS' not in self._devkit_path else self._devkit_path
+        if 'SDS' not in self._devkit_path and 'DAVIS' not in self._devkit_path:
+            self._data_path = os.path.join(self._devkit_path, 'VOC' + self._year)
+        elif 'DAVIS' in self._devkit_path:
+            self._data_path = os.path.join(self._devkit_path, 'DAVIS' + self._year)
+        else:
+            self._devkit_path
         self._classes = ('__background__',  # always index 0
                          'aeroplane', 'bicycle', 'bird', 'boat',
                          'bottle', 'bus', 'car', 'cat', 'chair',
@@ -70,6 +75,7 @@ class PascalVOCDet(PascalVOC):
         Return the database of ground-truth regions of interest.
         This function loads/saves from/to a cache file to speed up future calls.
         """
+        print "Loading annotation data from VOC"
         cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb.pkl')
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:

@@ -15,7 +15,7 @@ from utils.vis_seg import vis_seg
 from utils.voc_eval import voc_eval_sds
 import scipy
 import cv2
-
+import PIL
 
 class DAVISSeg(PascalVOCDet):
     """
@@ -34,9 +34,15 @@ class DAVISSeg(PascalVOCDet):
                        'use_diff': False,
                        'matlab_eval': False,
                        'rpn_file': None}
+        self._name = 'davis_' + year
         # self._data_path = os.path.join(self._devkit_path)
-        self._data_path = self._get_default_path() if devkit_path is None else devkit_path
-
+        # self._data_path = self._get_default_path() if devkit_path is None else devkit_path
+        if 'SDS' not in self._devkit_path and 'DAVIS' not in self._devkit_path:
+            self._data_path = os.path.join(self._devkit_path, 'VOC' + self._year)
+        elif 'DAVIS' in self._devkit_path:
+            self._data_path = os.path.join(self._devkit_path, 'DAVIS' + self._year)
+        else:
+            self._devkit_path
         self._image_index = self._load_image_set_index()
 
         self._roidb_path = os.path.join(self.cache_path, 'voc_2012_' + image_set + '_mcg_maskdb')
@@ -49,6 +55,12 @@ class DAVISSeg(PascalVOCDet):
 
     def image_path_at(self, i):
         # image_path = os.path.join(self._data_path, 'VOC2012', 'JPEGImages',  self._image_index[i] + self._image_ext)
+        # print "image_path_at {}".format(self._image_index[i])
+        # image_name = os.path.join(*(self._image_index[i].split('/')[1:]))
+        # image_name = image_name.split('.')[0]
+        # inst_file_name = os.path.join(self._data_path, 'Annotations', image_name + '.png')
+
+
         image_path = os.path.join(self._data_path, self._image_index[i])
         assert os.path.exists(image_path), 'Path does not exist: {}'.format(image_path)
         return image_path
@@ -69,19 +81,26 @@ class DAVISSeg(PascalVOCDet):
             print '{} gt maskdb loaded from {}'.format(self.name, cache_file)
         else:
             num_image = len(self.image_index)
-            gt_roidbs = self.gt_davis_roidb()
-            gt_maskdb = [self._load_davis_mask_annotations(index, gt_roidbs)
-                         for index in xrange(num_image)]
+            gt_roidbs = self.gt_roidb()
+            gt_maskdb = []
+            for index in xrange(num_image):
+                gt_maskdb0 = self._load_davis_mask_annotations(index, gt_roidbs)
+                if gt_maskdb0:
+                    gt_maskdb.append(gt_maskdb0)
+
+            # gt_maskdb = [self._load_davis_mask_annotations(index, gt_roidbs)
+            #              for index in xrange(num_image)]
             with open(cache_file, 'wb') as fid:
                 cPickle.dump(gt_maskdb, fid, cPickle.HIGHEST_PROTOCOL)
             print 'wrote gt roidb to {}'.format(cache_file)
         return gt_maskdb
 
-    def gt_davis_roidb(self):
+    def gt_roidb(self):
         """
         Return the database of ground-truth regions of interest.
         This function loads/saves from/to a cache file to speed up future calls.
         """
+        print "Loading DAVIS annotation data"
         cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb.pkl')
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
@@ -91,9 +110,18 @@ class DAVISSeg(PascalVOCDet):
 
         num_image = len(self.image_index)
         if cfg.MNC_MODE:
-            gt_roidb = [self._load_davis_annotations(index) for index in xrange(num_image)]
+            gt_roidb = []
+            for index in xrange(num_image):
+                gt_roidb0 = self._load_davis_annotations(index)
+                if gt_roidb0:
+                    gt_roidb.append(gt_roidb0)
+            # gt_roidb = [self._load_davis_annotations(index) for index in xrange(num_image)]
         else:
             gt_roidb = [self._load_pascal_annotations(index) for index in xrange(num_image)]
+
+        print "total number of images: {}".format(num_image)
+        print "roidb length: {}".format(len(gt_roidb))
+
         with open(cache_file, 'wb') as fid:
             cPickle.dump(gt_roidb, fid, cPickle.HIGHEST_PROTOCOL)
         print 'wrote gt roidb to {}'.format(cache_file)
@@ -101,10 +129,26 @@ class DAVISSeg(PascalVOCDet):
 
     def _load_image_set_index(self):
         # image_set_file = os.path.join(self._data_path, 'ImageSets' , 'Segmentation', self._image_set + '.txt')
+
+
+
         image_set_file = os.path.join(self._data_path, 'ImageSets', '480p', self._image_set + '.txt')
         assert os.path.exists(image_set_file), 'Path does not exist: {}'.format(image_set_file)
         with open(image_set_file) as f:
-            image_index = [x.strip().split[' '][0] for x in f.readlines()]
+            image_index = []
+            for x in f.readlines():
+                im_idx = x.strip().split(' ')[0][1:]
+                image_name = os.path.join(*(im_idx.split('/')[1:]))
+                image_name = image_name.split('.')[0]
+
+                inst_file_name = os.path.join(self._data_path, 'Annotations', image_name + '.png')
+                gt_inst_data = cv2.imread(inst_file_name)
+                gt_inst_data = gt_inst_data[..., 0]
+                unique_inst = np.unique(gt_inst_data)
+                if unique_inst.shape[0] > 1:
+                    image_index.append(im_idx)
+
+            # image_index = [x.strip().split(' ')[0][1:] for x in f.readlines()]
         return image_index
 
     # def _load_davis_mask_annotations(self, index, gt_roidbs):
@@ -126,9 +170,18 @@ class DAVISSeg(PascalVOCDet):
         # gt_inst_mat = scipy.io.loadmat(inst_file_name)
         # gt_inst_data = gt_inst_mat['GTinst']['Segmentation'][0][0]
         gt_inst_data = cv2.imread(inst_file_name)
+        gt_inst_data = gt_inst_data[...,0]
+        # print "Reading mask data from DAVIS"
+        # print "mask max data {}".format(np.max(gt_inst_data))
+        # print "mask shape {},{}".format(gt_inst_data.shape[0],gt_inst_data.shape[1])
         unique_inst = np.unique(gt_inst_data)
         background_ind = np.where(unique_inst == 0)[0]
         unique_inst = np.delete(unique_inst, background_ind)
+        if len(unique_inst) == 0:
+            print "no annotated fg"
+            return
+        # print "annotation: {}".format(inst_file_name)
+        # print "mask data {}".format(unique_inst.shape[0])
 
 
         # inst_file_name = os.path.join(self._data_path, 'inst', image_name + '.mat')
@@ -144,7 +197,11 @@ class DAVISSeg(PascalVOCDet):
 
         boxes = np.zeros((len(unique_inst), 4), dtype=np.uint16)
         gt_classes = np.zeros(len(unique_inst), dtype=np.int32)
-        overlaps = np.zeros((len(unique_inst), self.num_classes), dtype=np.float32)
+        if unique_inst:
+            overlaps = np.zeros((len(unique_inst), np.max(unique_inst)+1), dtype=np.float32)
+        else:
+            overlaps = np.zeros((len(unique_inst), 1), dtype=np.float32)
+        # overlaps = np.zeros((len(unique_inst), self.num_classes), dtype=np.float32)
         for ind, inst_mask in enumerate(unique_inst):
             im_mask = (gt_inst_data == inst_mask)
             # im_cls_mask = np.multiply(gt_cls_data, im_mask)
@@ -153,13 +210,13 @@ class DAVISSeg(PascalVOCDet):
             # unique_cls_inst = np.delete(unique_cls_inst, background_ind)
             # assert len(unique_cls_inst) == 1
             # gt_classes[ind] = unique_cls_inst[0]
-            gt_classes[ind] = ind
+            gt_classes[ind] = inst_mask
             [r, c] = np.where(im_mask > 0)
             boxes[ind, 0] = np.min(c)
             boxes[ind, 1] = np.min(r)
             boxes[ind, 2] = np.max(c)
             boxes[ind, 3] = np.max(r)
-            overlaps[ind, ind] = 1.0
+            overlaps[ind, inst_mask] = 1.0
 
         overlaps = scipy.sparse.csr_matrix(overlaps)
         return {'boxes': boxes,
@@ -181,8 +238,13 @@ class DAVISSeg(PascalVOCDet):
         # gt_inst_data = gt_inst_mat['GTinst']['Segmentation'][0][0]
         gt_inst_data = cv2.imread(inst_file_name)
         unique_inst = np.unique(gt_inst_data)
+        gt_inst_data = gt_inst_data[...,0]
         background_ind = np.where(unique_inst == 0)[0]
         unique_inst = np.delete(unique_inst, background_ind)
+
+        if len(unique_inst) == 0:
+            return
+
         gt_roidb = gt_roidbs[index]
         # cls_file_name = os.path.join(self._data_path, 'cls', image_name + '.mat')
         # gt_cls_mat = scipy.io.loadmat(cls_file_name)
@@ -202,13 +264,54 @@ class DAVISSeg(PascalVOCDet):
             gt_masks.append(mask)
 
         # Also record the maximum dimension to create fixed dimension array when do forwarding
-        mask_max_x = max(gt_masks[i].shape[1] for i in xrange(len(gt_masks)))
-        mask_max_y = max(gt_masks[i].shape[0] for i in xrange(len(gt_masks)))
+        if gt_masks:
+            mask_max_x = max(gt_masks[i].shape[1] for i in xrange(len(gt_masks)))
+            mask_max_y = max(gt_masks[i].shape[0] for i in xrange(len(gt_masks)))
+        else:
+            mask_max_x = 0
+            mask_max_y = 0
+
         return {
             'gt_masks': gt_masks,
             'mask_max': [mask_max_x, mask_max_y],
             'flipped': False
         }
+
+    def append_flipped_rois(self):
+        """
+        This method is irrelevant with database, so implement here
+        Append flipped images to ROI database
+        Note this method doesn't actually flip the 'image', it flip
+        boxes instead
+        """
+        cache_file = os.path.join(self.cache_path, self.name + '_' + cfg.TRAIN.PROPOSAL_METHOD + '_roidb_flip.pkl')
+        if os.path.exists(cache_file):
+            with open(cache_file, 'rb') as fid:
+                flip_roidb = cPickle.load(fid)
+            print '{} gt flipped roidb loaded from {}'.format(self.name, cache_file)
+        else:
+            num_images = self.num_images
+            widths = [PIL.Image.open(self.image_path_at(i)).size[0]
+                      for i in xrange(num_images)]
+            flip_roidb = []
+            for i in xrange(num_images):
+                boxes = self.roidb[i]['boxes'].copy()
+                oldx1 = boxes[:, 0].copy()
+                oldx2 = boxes[:, 2].copy()
+                boxes[:, 0] = widths[i] - oldx2 - 1
+                boxes[:, 2] = widths[i] - oldx1 - 1
+                assert (boxes[:, 2] >= boxes[:, 0]).all()
+                entry = {'boxes': boxes,
+                         'gt_overlaps': self.roidb[i]['gt_overlaps'],
+                         'gt_classes': self.roidb[i]['gt_classes'],
+                         'flipped': True}
+                flip_roidb.append(entry)
+            with open(cache_file, 'wb') as fid:
+                cPickle.dump(flip_roidb, fid, cPickle.HIGHEST_PROTOCOL)
+            print 'wrote gt flipped roidb to {}'.format(cache_file)
+
+        self.roidb.extend(flip_roidb)
+        self._image_index *= 2
 
     def append_flipped_masks(self):
         """

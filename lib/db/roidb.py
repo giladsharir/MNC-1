@@ -26,6 +26,9 @@ def prepare_roidb(imdb):
     sizes = [PIL.Image.open(imdb.image_path_at(i)).size
              for i in xrange(imdb.num_images)]
     roidb = imdb.roidb
+    print "image index {}".format(len(imdb.image_index))
+    print "roidb {}".format(len(roidb))
+
     for i in xrange(len(imdb.image_index)):
         roidb[i]['image'] = imdb.image_path_at(i)
         roidb[i]['width'] = sizes[i][0]
@@ -59,8 +62,11 @@ def add_bbox_regression_targets(roidb):
         rois = roidb[im_i]['boxes']
         max_overlaps = roidb[im_i]['max_overlaps']
         max_classes = roidb[im_i]['max_classes']
-        roidb[im_i]['bbox_targets'] = \
-            compute_targets(rois, max_overlaps, max_classes)
+        if max_overlaps:
+            roidb[im_i]['bbox_targets'] = \
+                compute_targets(rois, max_overlaps, max_classes)
+        else:
+            roidb[im_i]['bbox_targets'] = []
 
     if cfg.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
         # Use fixed / precomputed "means" and "stds" instead of empirical values
@@ -99,10 +105,14 @@ def add_bbox_regression_targets(roidb):
         print "Normalizing targets"
         for im_i in xrange(num_images):
             targets = roidb[im_i]['bbox_targets']
-            for cls in xrange(1, num_classes):
-                cls_inds = np.where(targets[:, 0] == cls)[0]
-                roidb[im_i]['bbox_targets'][cls_inds, 1:] -= means[cls, :]
-                roidb[im_i]['bbox_targets'][cls_inds, 1:] /= stds[cls, :]
+            if not targets == []:
+                for cls in xrange(1, num_classes):
+                    cls_inds = np.where(targets[:, 0] == cls)[0]
+                    roidb[im_i]['bbox_targets'][cls_inds, 1:] -= means[cls, :]
+                    roidb[im_i]['bbox_targets'][cls_inds, 1:] /= stds[cls, :]
+
+
+
     else:
         print "NOT normalizing targets"
 
@@ -116,6 +126,7 @@ def get_roidb(imdb_name):
     print 'Loaded dataset `{:s}` for training'.format(imdb.name)
     # Here set handler function. (e.g. gt_roidb in faster RCNN)
     imdb.set_roi_handler(cfg.TRAIN.PROPOSAL_METHOD)
+    print imdb._data_path
     print 'Set proposal method: {:s}'.format(cfg.TRAIN.PROPOSAL_METHOD)
     if cfg.TRAIN.USE_FLIPPED:
         print 'Appending horizontally-flipped training examples...'

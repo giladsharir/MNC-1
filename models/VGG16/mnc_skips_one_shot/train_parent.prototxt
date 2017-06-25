@@ -10,7 +10,9 @@ layer {
   python_param {
     module: 'pylayer.mnc_data_layer'
     layer: 'MNCDataLayer'
-    param_str: "{ 'num_classes': 21 }"
+    param_str: "{ 'num_classes': 256 }"
+    #param_str: "{ 'num_classes': 21 }"
+
   }
 }
 
@@ -522,7 +524,8 @@ layer {
   python_param {
     module: 'pylayer.proposal_target_layer'
     layer: 'ProposalTargetLayer'
-    param_str: "{'num_classes': 21, 'bp_all': 1}"
+#    param_str: "{'num_classes': 21, 'bp_all': 1}"
+    param_str: "{'num_classes': 256, 'bp_all': 1}"
   }
 }
 
