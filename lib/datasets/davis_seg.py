@@ -46,6 +46,8 @@ class DAVISSeg(PascalVOCDet):
         self._image_index = self._load_image_set_index()
 
         self._roidb_path = os.path.join(self.cache_path, 'voc_2012_' + image_set + '_mcg_maskdb')
+        # self._classes = [str(i) for i in xrange(256)]
+        self._classes = ('__background__', 'forground')
 
     def _get_default_path(self):
         """
@@ -171,6 +173,7 @@ class DAVISSeg(PascalVOCDet):
         # gt_inst_data = gt_inst_mat['GTinst']['Segmentation'][0][0]
         gt_inst_data = cv2.imread(inst_file_name)
         gt_inst_data = gt_inst_data[...,0]
+        gt_inst_data[gt_inst_data == np.max(gt_inst_data)] = 1
         # print "Reading mask data from DAVIS"
         # print "mask max data {}".format(np.max(gt_inst_data))
         # print "mask shape {},{}".format(gt_inst_data.shape[0],gt_inst_data.shape[1])

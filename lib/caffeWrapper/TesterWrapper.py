@@ -244,19 +244,28 @@ class TesterWrapper(object):
         rois_phase1 = self.net.blobs['rois'].data.copy()
         masks_phase1 = self.net.blobs['mask_proposal'].data[...]
         scores_phase1 = self.net.blobs['seg_cls_prob'].data[...]
-        # 2. output from phase2
-        rois_phase2 = self.net.blobs['rois_ext'].data[...]
-        masks_phase2 = self.net.blobs['mask_proposal_ext'].data[...]
-        scores_phase2 = self.net.blobs['seg_cls_prob_ext'].data[...]
         # Boxes are in resized space, we un-scale them back
+
         rois_phase1 = rois_phase1[:, 1:5] / im_scales[0]
-        rois_phase2 = rois_phase2[:, 1:5] / im_scales[0]
         rois_phase1, _ = clip_boxes(rois_phase1, im.shape)
-        rois_phase2, _ = clip_boxes(rois_phase2, im.shape)
-        # concatenate two stages to get final network output
-        masks = np.concatenate((masks_phase1, masks_phase2), axis=0)
-        boxes = np.concatenate((rois_phase1, rois_phase2), axis=0)
-        scores = np.concatenate((scores_phase1, scores_phase2), axis=0)
+
+        masks = masks_phase1
+        boxes = rois_phase1
+        scores = scores_phase1
+        # 2. output from phase2
+        use_extended_mnc = False
+        if (use_extended_mnc):
+            rois_phase2 = self.net.blobs['rois_ext'].data[...]
+            masks_phase2 = self.net.blobs['mask_proposal_ext'].data[...]
+            scores_phase2 = self.net.blobs['seg_cls_prob_ext'].data[...]
+            rois_phase2 = rois_phase2[:, 1:5] / im_scales[0]
+            rois_phase2, _ = clip_boxes(rois_phase2, im.shape)
+
+
+            # concatenate two stages to get final network output
+            masks = np.concatenate((masks_phase1, masks_phase2), axis=0)
+            boxes = np.concatenate((rois_phase1, rois_phase2), axis=0)
+            scores = np.concatenate((scores_phase1, scores_phase2), axis=0)
         return masks, boxes, scores
 
     def _prepare_mnc_args(self, im):

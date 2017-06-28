@@ -33,10 +33,21 @@ def vis_seg(img_names, cls_names, output_dir, gt_dir):
 
     res_list = _prepare_dict(img_names, cls_names, output_dir)
     for img_ind, image_name in enumerate(img_names):
-        target_inst_file = os.path.join(inst_dir, image_name + '.jpg')
-        target_cls_file = os.path.join(cls_dir, image_name + '.jpg')
-        print image_name
-        gt_image = gt_dir + '/img/' + image_name + '.jpg'
+        seq_name = image_name.split('/')[-2]
+        if not os.path.isdir(os.path.join(res_dir,seq_name)):
+            os.mkdir(os.path.join(res_dir,seq_name))
+        if not os.path.isdir(os.path.join(cls_dir,seq_name)):
+            os.mkdir(os.path.join(cls_dir,seq_name))
+        if not os.path.isdir(os.path.join(inst_dir,seq_name)):
+            os.mkdir(os.path.join(inst_dir,seq_name))
+
+        target_inst_file = os.path.join(inst_dir, seq_name,
+                                        image_name.split('/')[-1].split('.')[0] + '.jpg')
+        target_cls_file = os.path.join(cls_dir, seq_name,
+                                       image_name.split('/')[-1].split('.')[0] + '.jpg')
+        # print image_name
+        gt_image = os.path.join(gt_dir, image_name.split('.')[0] + '.jpg')
+        print gt_image
         img_data = cv2.imread(gt_image)
         img_width = img_data.shape[1]
         img_height = img_data.shape[0]
@@ -57,7 +68,7 @@ def vis_seg(img_names, cls_names, output_dir, gt_dir):
         background = background.convert('RGBA')
         mask = mask.convert('RGBA')
         superimpose_image = Image.blend(background, mask, 0.8)
-        name = os.path.join(res_dir, image_name + '.png')
+        name = os.path.join(res_dir, seq_name, image_name.split('/')[-1].split('.')[0] + '.png')
         superimpose_image.save(name, 'PNG')
 
 

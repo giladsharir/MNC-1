@@ -20,7 +20,9 @@ __sets = {
     'voc_2012_seg_val': (lambda: PascalVOCSeg('val', '2012', '/home/ubuntu/Dev/VOCdevkitSDS/')),
     'voc_2007_trainval': (lambda: PascalVOCDet('trainval', '2007')),
     'voc_2007_test': (lambda: PascalVOCDet('test', '2007')),
-    'davis_2016_seg_train': (lambda: DAVISSeg('train', '2016', '/home/ubuntu/Data/DAVIS/'))
+    'davis_2016_seg_train': (lambda: DAVISSeg('train', '2016', '/home/ubuntu/Data/DAVIS/')),
+    'davis_2016_seg_val': (lambda: DAVISSeg('val', '2016', '/home/ubuntu/Data/DAVIS/')),
+    'davis_2016_seg_osvos': (lambda: DAVISSeg('finetune_osvos', '2016', '/home/ubuntu/Data/DAVIS/'))
 }
 
 

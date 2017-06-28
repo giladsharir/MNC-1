@@ -77,6 +77,10 @@ if __name__ == '__main__':
         np.random.seed(cfg.RNG_SEED)
         caffe.set_random_seed(cfg.RNG_SEED)
 
+
+#Todo - Gilad: train over data augmentation DAVIS
+
+
     # get imdb and roidb from specified imdb_name
     imdb, roidb = attach_roidb(args.imdb_name)
     # Faster RCNN doesn't need

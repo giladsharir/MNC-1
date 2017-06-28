@@ -231,6 +231,8 @@ def gpu_mask_voting(masks, boxes, scores, num_classes, max_per_image, im_width, 
             sup_scores.append([])
             continue
         dets = np.hstack((boxes.astype(np.float32), scores[:, i:i+1]))
+        if dets.shape[1] == 4:
+            print "shape mismach"
         inds = nms(dets, cfg.TEST.MASK_MERGE_NMS_THRESH)
         ind_boxes = boxes[inds]
         ind_scores = scores[inds, i]
