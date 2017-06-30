@@ -1,0 +1,17 @@
+# YAML config file
+# Please copy this file, fill in the parameters and rename it to config.yaml
+# Todo: add documentation to readme
+paths:
+ data_root: '/home/ubuntu/Data'
+ caffe_root: '/home/ubuntu/Dev/hed'
+ frcnn_root: '/home/ubuntu/Dev/tf-faster-rcnn'
+ models: 'output/mnc_osvos/davis_2016'
+# models: '/home/ubuntu/Data/models/pretrained'
+# datasets: '/home/ubuntu/Data/GyGo_data'
+ datasets: '/home/ubuntu/Data'
+ davis_repo: '/home/ubuntu/Dev/evaluation/davis'
+ davis_env: '/home/ubuntu/.virtualenvs/davis'
+#paths:
+#  caffe_root: '/home/ubuntu/Dev/hed'
+#  models: '/home/ubuntu/Dev/gygonet/experiments/GRES-75'
+#  datasets: '/home/ubuntu/Data/GyGo_data'

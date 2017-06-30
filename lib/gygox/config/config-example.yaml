@@ -1,0 +1,12 @@
+# YAML config file
+# Please copy this file, fill in the parameters and rename it to config.yaml
+# Todo: add documentation to readme
+paths:
+  data_root: '/home/ubuntu/Data'
+  caffe_root: '/home/ubuntu/caffe-vl'
+  frcnn_root: '/home/ubuntu/tf-faster-rcnn'
+  models: '/home/ubuntu/Data/models/pretrained'
+  datasets: '/home/ubuntu/Data/datasets'
+  davis_repo: '/home/ubuntu/workspace/GyGOX-ML-Training/davis'
+  davis_env: '/home/ubuntu/.virtualenvs/davis'
+
