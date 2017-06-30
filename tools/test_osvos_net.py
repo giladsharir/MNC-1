@@ -11,6 +11,7 @@
 import argparse
 import sys
 import os
+import os.path as osp
 import time
 import pprint
 # User-defined module
@@ -19,6 +20,8 @@ import caffe
 from mnc_config import cfg, cfg_from_file
 from db.imdb import get_imdb
 from caffeWrapper.TesterWrapper import TesterWrapper
+import gygox
+from gygox import gygonet_caffe
 
 # OSVOS - finetune on one-shot frame and then test segmentation on the rest of
 def parse_args():
@@ -83,8 +86,46 @@ if __name__ == '__main__':
     caffe.set_device(args.gpu_id)
 
 
-    # Todo - Gilad: train over data augmentation DAVIS
+
+    # Todo - Gilad: train on data augmentation DAVIS
     ### go over all the sequences in DAVIS
+    # seq_name = 'blackswann'
+    exp_dir = "./models/VGG16/mnc_skips_one_shot"
+    output_path = "./output/mnc_osvos/davis_2016/try1"
+    base_model_path = args.caffemodel
+    # "./output/mnc_osvos/davis_2016/vgg16_mnc_skips_osvos_iter_8000.caffemodel.h5"
+
+    davis_db_path = osp.join(gygox.cfg['paths']['datasets'], 'DAVIS', 'DAVIS2016')
+    maps_out_path = osp.join(output_path, 'maps')
+    masks_out_path = osp.join(output_path, 'masks')
+
+    # Todo - Gilad: modify the GygoNet class - initialize imdb with finetune.txt file for each sequence
+    # Todo - Gilad: initialize SolverWrapper inside GygoNet finetune_os
+    # Todo - Gilad: initialize TesterWrapper inside GygoNet run_on_sequence
+    # Todo - Gilad: copy weights from finetuned model to tester model
+
+    gygonet = gygonet_caffe.GygoNet(
+        solver_path=osp.join(exp_dir, 'solver_validate.prototxt'),
+        base_model_path=base_model_path,
+        net_path=osp.join(exp_dir, 'net_validate.prototxt'),
+        finetune_pair_path=osp.join(davis_db_path, 'ImageSets', '480p', 'finetune_osvos.txt'),
+        testing_pair_path=osp.join(davis_db_path, 'ImageSets', '480p', 'test_osvos.txt'),
+        db_path=davis_db_path, imdb_name=args.imdb_name)
+
+    # finetune and segment images into output_path
+    gygonet.run_on_dataset(os_aug_type=gygox.AugmentationType.LOW,
+                         os_solver_steps=20,
+                         maps_out_path=maps_out_path,
+                         masks_out_path=masks_out_path)
+
+    # gygonet = gygonet_caffe.GygoNet(
+    #     solver_path=os.path.join(exp_dir, 'solver.prototxt'),
+    #     base_model_path=os.path.join(gygox.cfg['paths']['models'],
+    #                              'vgg16_mnc_skips_osvos_iter_8000.caffemodel.h5'))
+
+    # gygonet.train(20)
+
+
     # create a osvos file from aumentations finetune_osvos.txt
     # for finetuning osvos :  args.imdb_name = 'davis_2016_seg_osvos'
     # init the SolverWrapper with imdb
@@ -94,6 +135,6 @@ if __name__ == '__main__':
     # save the model, and load it in TesterWrapper
 
 
-    imdb = get_imdb(args.imdb_name)
-    _tester = TesterWrapper(args.prototxt, imdb, args.caffemodel, args.task_name)
-    _tester.get_result()
+    # imdb = get_imdb(args.imdb_name)
+    # _tester = TesterWrapper(args.prototxt, imdb, args.caffemodel, args.task_name)
+    # _tester.get_result()

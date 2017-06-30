@@ -27,8 +27,10 @@ class TesterWrapper(object):
     """
     def __init__(self, test_prototxt, imdb, test_model, task_name):
         # Pre-processing, test whether model stored in binary file or npy files
-        self.net = caffe.Net(test_prototxt, test_model, caffe.TEST)
-        self.net.name = os.path.splitext(os.path.basename(test_model))[0]
+        #Todo Gilad: error here - check if we're not callling the older vsn of caffe lib
+        #Todo Gilad: possible - load solver and then copy to test net.  check in original MNC
+        self.net = caffe.Net(test_prototxt, str(test_model), caffe.TEST)
+        self.net.name = os.path.splitext(os.path.basename(str(test_model)))[0]
         self.imdb = imdb
         self.output_dir = get_output_dir(imdb, self.net)
         self.task_name = task_name
@@ -43,8 +45,12 @@ class TesterWrapper(object):
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
-    def get_result(self):
+    def get_result(self, seq_name = ''):
         output_dir = self.output_dir
+        if seq_name:
+            output_dir = os.path.join(output_dir, seq_name)
+            if not os.path.isdir(output_dir):
+                os.mkdir(output_dir)
         det_file = os.path.join(output_dir, 'res_boxes.pkl')
         seg_file = os.path.join(output_dir, 'res_masks.pkl')
         if self.task_name == 'det':
@@ -63,8 +69,9 @@ class TesterWrapper(object):
                     cPickle.dump(seg_box, f, cPickle.HIGHEST_PROTOCOL)
                 with open(seg_file, 'wb') as f:
                     cPickle.dump(seg_mask, f, cPickle.HIGHEST_PROTOCOL)
+
             print 'Evaluating segmentation using MNC 5 stage inference'
-            self.imdb.evaluate_segmentation(seg_box, seg_mask, output_dir)
+            # self.imdb.evaluate_segmentation(seg_box, seg_mask, output_dir)
         elif self.task_name == 'cfm':
             if os.path.isfile(det_file) and os.path.isfile(seg_file):
                 with open(det_file, 'rb') as f:

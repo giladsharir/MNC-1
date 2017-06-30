@@ -79,7 +79,7 @@ if __name__ == '__main__':
 
 
 #Todo - Gilad: train over data augmentation DAVIS
-
+#Todo - Gilad: train using the gygonet class (modified the load_image_index function in davis_seg.py...
 
     # get imdb and roidb from specified imdb_name
     imdb, roidb = attach_roidb(args.imdb_name)

@@ -23,7 +23,7 @@ class DAVISSeg(PascalVOCDet):
     This class contains information of ROIDB and MaskDB
     This class implements roidb and maskdb related functions
     """
-    def __init__(self, image_set, year, devkit_path=None):
+    def __init__(self, image_set, year, devkit_path=None, finetune_mode=False, use_cache=True):
         PascalVOCDet.__init__(self, image_set, year, devkit_path)
         self._ori_image_num = len(self._image_index)
         self._comp_id = 'comp6'
@@ -43,7 +43,11 @@ class DAVISSeg(PascalVOCDet):
             self._data_path = os.path.join(self._devkit_path, 'DAVIS' + self._year)
         else:
             self._devkit_path
-        self._image_index = self._load_image_set_index()
+
+        self.finetune_mode = finetune_mode
+        self.use_cache = use_cache
+
+        self._image_index = self._load_image_set_index(finetune_mode)
 
         self._roidb_path = os.path.join(self.cache_path, 'voc_2012_' + image_set + '_mcg_maskdb')
         # self._classes = [str(i) for i in xrange(256)]
@@ -77,7 +81,7 @@ class DAVISSeg(PascalVOCDet):
 
     def gt_maskdb(self):
         cache_file = os.path.join(self.cache_path, self.name + '_gt_maskdb.pkl')
-        if os.path.exists(cache_file):
+        if os.path.exists(cache_file) and self.use_cache:
             with open(cache_file, 'rb') as fid:
                 gt_maskdb = cPickle.load(fid)
             print '{} gt maskdb loaded from {}'.format(self.name, cache_file)
@@ -104,7 +108,7 @@ class DAVISSeg(PascalVOCDet):
         """
         print "Loading DAVIS annotation data"
         cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb.pkl')
-        if os.path.exists(cache_file):
+        if os.path.exists(cache_file) and self.use_cache:
             with open(cache_file, 'rb') as fid:
                 roidb = cPickle.load(fid)
             print '{} gt roidb loaded from {}'.format(self.name, cache_file)
@@ -129,7 +133,7 @@ class DAVISSeg(PascalVOCDet):
         print 'wrote gt roidb to {}'.format(cache_file)
         return gt_roidb
 
-    def _load_image_set_index(self):
+    def _load_image_set_index(self,finetune_mode):
         # image_set_file = os.path.join(self._data_path, 'ImageSets' , 'Segmentation', self._image_set + '.txt')
 
 
@@ -139,11 +143,27 @@ class DAVISSeg(PascalVOCDet):
         with open(image_set_file) as f:
             image_index = []
             for x in f.readlines():
-                im_idx = x.strip().split(' ')[0][1:]
-                image_name = os.path.join(*(im_idx.split('/')[1:]))
-                image_name = image_name.split('.')[0]
+                # im_idx = x.strip().split(' ')[0][1:]
+                im_idx = x.strip().split(' ')[0]
 
-                inst_file_name = os.path.join(self._data_path, 'Annotations', image_name + '.png')
+                if finetune_mode:
+                    # image_name = os.path.join(*(im_idx.split('/')[1:]))
+                    # image_name = image_name.split('.')[0]
+                    image_name = im_idx[:-4]
+                    tmp = [self._data_path, 'Temp', '480p', 'gt']
+                    tmp.append(image_name.split('/')[-2])
+                    tmp.append(image_name.split('/')[-1]+'.png')
+                    inst_file_name = os.path.join(*(tmp))
+                    im_idx = os.path.join(*(im_idx.split('/')[-5:]))
+                    # inst_file_name = os.path.join(*([self._data_path,'Temp','480p','gt',image_name.split('/')[-2:]]))
+                else:
+                    image_name = os.path.join(*(im_idx.split('/')[-3:]))
+                    image_name = image_name[:-4]
+
+                    # image_name = os.path.join(*(im_idx.split('/')[1:]))
+                    # # image_name = image_name.split('.')[0]
+                    # image_name = image_name[:-4]
+                    inst_file_name = os.path.join(self._data_path, 'Annotations', image_name + '.png')
                 gt_inst_data = cv2.imread(inst_file_name)
                 gt_inst_data = gt_inst_data[..., 0]
                 unique_inst = np.unique(gt_inst_data)
@@ -165,9 +185,12 @@ class DAVISSeg(PascalVOCDet):
     def _load_davis_annotations(self, index):
         if index % 1000 == 0: print '%d / %d' % (index, len(self._image_index))
         image_name = os.path.join(*(self._image_index[index].split('/')[1:]))
-        image_name = image_name.split('.')[0]
+        image_name = image_name[:-4]
 
-        inst_file_name = os.path.join(self._data_path, 'Annotations', image_name + '.png')
+        if self.finetune_mode:
+            inst_file_name = os.path.join(self._data_path, 'Temp', '480p', 'gt', image_name.split('/')[-2], image_name.split('/')[-1] + '.png')
+        else:
+            inst_file_name = os.path.join(self._data_path, 'Annotations', image_name + '.png')
 
         # gt_inst_mat = scipy.io.loadmat(inst_file_name)
         # gt_inst_data = gt_inst_mat['GTinst']['Segmentation'][0][0]
@@ -233,9 +256,13 @@ class DAVISSeg(PascalVOCDet):
         if index % 1000 == 0:
             print '%d / %d' % (index, len(self._image_index))
         image_name = os.path.join(*(self._image_index[index].split('/')[1:]))
-        image_name = image_name.split('.')[0]
+        image_name = image_name[:-4]
 
-        inst_file_name = os.path.join(self._data_path, 'Annotations', image_name + '.png')
+
+        if self.finetune_mode:
+            inst_file_name = os.path.join(self._data_path, 'Temp', '480p', 'gt', image_name.split('/')[-2], image_name.split('/')[-1] + '.png')
+        else:
+            inst_file_name = os.path.join(self._data_path, 'Annotations', image_name + '.png')
 
         # gt_inst_mat = scipy.io.loadmat(inst_file_name)
         # gt_inst_data = gt_inst_mat['GTinst']['Segmentation'][0][0]
@@ -288,7 +315,7 @@ class DAVISSeg(PascalVOCDet):
         boxes instead
         """
         cache_file = os.path.join(self.cache_path, self.name + '_' + cfg.TRAIN.PROPOSAL_METHOD + '_roidb_flip.pkl')
-        if os.path.exists(cache_file):
+        if os.path.exists(cache_file) and self.use_cache:
             with open(cache_file, 'rb') as fid:
                 flip_roidb = cPickle.load(fid)
             print '{} gt flipped roidb loaded from {}'.format(self.name, cache_file)
@@ -323,7 +350,7 @@ class DAVISSeg(PascalVOCDet):
         Note this method doesn't actually flip the 'image', it flip masks instead
         """
         cache_file = os.path.join(self.cache_path, self.name + '_' + cfg.TRAIN.PROPOSAL_METHOD + '_maskdb_flip.pkl')
-        if os.path.exists(cache_file):
+        if os.path.exists(cache_file) and self.use_cache:
             with open(cache_file, 'rb') as fid:
                 flip_maskdb = cPickle.load(fid)
             print '{} gt flipped roidb loaded from {}'.format(self.name, cache_file)
@@ -334,7 +361,8 @@ class DAVISSeg(PascalVOCDet):
         else:
             # pure image number hold for future development
             # this is useless since append flip mask will only be called once
-            num_images = self._ori_image_num
+            # num_images = self._ori_image_num
+            num_images = self.num_images
             flip_maskdb = []
             for i in xrange(num_images):
                 masks = self.maskdb[i]['gt_masks']

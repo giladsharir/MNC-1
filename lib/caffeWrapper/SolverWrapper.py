@@ -118,6 +118,7 @@ class SolverWrapper(object):
             # restore net to original state
             net.params['bbox_pred'][0].data[...] = orig_0
             net.params['bbox_pred'][1].data[...] = orig_1
+        return filename
 
     def train_model(self, max_iters):
         last_snapshot_iter = -1
@@ -131,8 +132,10 @@ class SolverWrapper(object):
 
             if self.solver.iter % cfg.TRAIN.SNAPSHOT_ITERS == 0:
                 last_snapshot_iter = self.solver.iter
-                self.snapshot()
+                filename = self.snapshot()
 
         if last_snapshot_iter != self.solver.iter:
-            self.snapshot()
+            filename = self.snapshot()
+
+        return filename
 

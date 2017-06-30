@@ -22,7 +22,8 @@ __sets = {
     'voc_2007_test': (lambda: PascalVOCDet('test', '2007')),
     'davis_2016_seg_train': (lambda: DAVISSeg('train', '2016', '/home/ubuntu/Data/DAVIS/')),
     'davis_2016_seg_val': (lambda: DAVISSeg('val', '2016', '/home/ubuntu/Data/DAVIS/')),
-    'davis_2016_seg_osvos': (lambda: DAVISSeg('finetune_osvos', '2016', '/home/ubuntu/Data/DAVIS/'))
+    'davis_2016_seg_osvos': (lambda: DAVISSeg('finetune_osvos', '2016', '/home/ubuntu/Data/DAVIS/', finetune_mode=True, use_cache=False)),
+    'davis_2016_seg_osvos_test': (lambda: DAVISSeg('test_osvos', '2016', '/home/ubuntu/Data/DAVIS/', use_cache=False))
 }
 
 
